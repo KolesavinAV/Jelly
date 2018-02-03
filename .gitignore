@@ -1,0 +1,8 @@
+
+!.gitignore
+
+templates/*
+!templates/.gitkeep
+
+!Templater.php
+!TemplaterConfig.php

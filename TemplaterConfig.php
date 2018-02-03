@@ -1,0 +1,3 @@
+<?php
+
+$tc['templatesPath'] = 'templates/';
