@@ -36,6 +36,7 @@ class Templater{
 
         $this->replaceVars($tplFileContent);
         $this->replaceConditions($tplFileContent);
+        $this->replaceForeach($tplFileContent);
 
         $this->writeMatches($tplFileContent);
 
@@ -59,8 +60,8 @@ class Templater{
     }
 
     private function replaceConditions(&$content){
-        $offset = 0;
         
+        $offset = 0;
         while(preg_match($this->ifPattern, $content, $matches, PREG_OFFSET_CAPTURE, $offset)){
             $changedCondition = $matches[2][0];
             foreach($this->props as $key => $val){
@@ -72,9 +73,65 @@ class Templater{
             $offset = $matches[0][1] + mb_strlen($matches[0][0]);
         }
 
+        $offset = 0;
         while(preg_match('/<\/if>/', $content, $matches, PREG_OFFSET_CAPTURE, $offset)){
             $content = substr_replace($content, '<?php } ?>', $matches[0][1], mb_strlen($matches[0][0]));
             $offset = $matches[0][1] + mb_strlen($matches[0][0]);
+        }
+    }
+
+    private function replaceForeach(&$content){
+        $offset = 0;
+
+        while(preg_match('/<foreach.*>/', $content, $matches, PREG_OFFSET_CAPTURE, $offset)){
+            $attrMatches = [];
+            preg_match_all('/(\w+)="(\w+)"/', $matches[0][0], $attrMatches);
+            echo htmlspecialchars($matches[0][0]).'<br>';
+            if($attrMatches[0]){
+                $foreachParams = [];
+                for($i = 0; $i < count($attrMatches[0]); $i++){
+                    if($attrMatches[1][$i] == 'from'){
+                        if(!isset($this->props[$attrMatches[2][$i]])){
+                            throw new Exception("Property '{$attrMatches[2][$i]}' or value for it doesn't exist in this template");
+                        }
+
+                        $foreachParams['from'] = $attrMatches[2][$i];
+                    }
+                    if($attrMatches[1][$i] == 'value'){
+                        $foreachParams['value'] = $attrMatches[2][$i];
+                    }
+                    if($attrMatches[1][$i] == 'key'){
+                        $foreachParams['key'] = $attrMatches[2][$i];
+                    }
+                }
+
+                if(!isset($foreachParams['from'])){
+                    throw new Exception('Have not "from" in '.$matches[0][0]);
+                }
+                if(!isset($foreachParams['value'])){
+                    throw new Exception('Have not "value" in '.$matches[0][0]);
+                }
+
+                if(isset($foreachParams['key'])){
+                    $replacedForeach = 
+                    '<?php foreach($template[\''.$foreachParams['from'].'\'] as $'.$foreachParams['key'].' => $'.$foreachParams['value'].'){ ?>';
+                } else{
+                    $replacedForeach = '<?php foreach($template[\''.$foreachParams['from'].'\'] as $'.$foreachParams['value'].'){ ?>';
+                }
+                
+                $content = substr_replace($content, $replacedForeach, $matches[0][1], mb_strlen($matches[0][0]));
+                $offset = $matches[0][1] + mb_strlen($replacedForeach);
+            } else{
+                throw new Exception('No params for '.$matches[0][0]);
+                $offset = $matches[0][1] + mb_strlen($matches[0][0]);
+            }
+
+        }
+
+        $offset = 0;
+        while(preg_match('/<\/foreach>/', $content, $matches, PREG_OFFSET_CAPTURE, $offset)){
+            $content = substr_replace($content, '<?php } ?>', $matches[0][1], mb_strlen($matches[0][0]));
+            $offset = $matches[0][1] + mb_strlen('<?php } ?>');
         }
     }
 
