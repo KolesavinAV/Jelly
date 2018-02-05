@@ -4,7 +4,7 @@ class Templater{
     private $templatesPath, $templateName, $props = [], $cache = false;
     
     //Patterns
-    private $valuePattern = '/\{\{(\w+)\}\}/',
+    private $valuePattern = '/{{\s*(\$?\w+)\s*}}/',
         $ifPattern = '/<if.*(cond="(.+)").*>/';
     
     public function __construct($templateName){
@@ -52,10 +52,14 @@ class Templater{
         preg_match_all($this->valuePattern, $content, $valuesMatches);
 
         for($i = 0; $i < count($valuesMatches[0]); $i++){
-            if(!isset($this->props[$valuesMatches[1][$i]])){
-                throw new Exception("Property '{$valuesMatches[1][$i]}' or value for it doesn't exist in this template");
+            if(preg_match('/\$\w+/', $valuesMatches[1][$i])){
+                $content = str_replace($valuesMatches[0][$i], '<?php echo '.$valuesMatches[1][$i].'; ?>', $content);                
+            } else{
+                if(!isset($this->props[$valuesMatches[1][$i]])){
+                    throw new Exception("Property '{$valuesMatches[1][$i]}' or value for it doesn't exist in this template");
+                }
+                $content = str_replace($valuesMatches[0][$i], '<?php echo $template[\''.$valuesMatches[1][$i].'\']; ?>', $content);
             }
-            $content = str_replace($valuesMatches[0][$i], '<?php echo "{$template[\''.$valuesMatches[1][$i].'\']}"; ?>', $content);
         }
     }
 
