@@ -1,7 +1,7 @@
 <?php
 
 class Templater{
-    private $templatesPath, $templateName, $props = [], $cache = false;
+    private $templatesPath, $templateName, $templateFullName, $props = [], $cache = false, $config;
     
     //Patterns
     private $valuePattern = '/{{\s*(\$?\w+)\s*}}/',
@@ -11,12 +11,15 @@ class Templater{
         include_once 'TemplaterConfig.php';
 
         $this->templatesPath = $tc['templatesPath'];
+        $this->config = $tc;
 
         if(!isset($templateName)){
             throw new Exception("Template name doesn't exist");
         }
 
-        $this->templateName = str_replace('//', '/',$this->templatesPath.$templateName);
+        $this->templateName = preg_replace('/^\/*/', '', $templateName);
+        // $this->templateName = str_replace('//', '/',$this->templatesPath.$templateName);
+        $this->templateFullName = $this->templatesPath.$this->templateName.$this->config['templateExtension'];
     }
 
     public function assign($prop, $val){
@@ -27,11 +30,32 @@ class Templater{
         }
     }
 
+    public function display(){
+        $templateContent = $this->render();
+        
+        echo $this->templateFullName.'<br>';
+        echo $this->templateName;
+        // echo preg_replace('/\/.*$/', '', $this->templateName);
+
+        $renderedTemplateDir = $this->config['cache']['path'].preg_replace('/\/\w+$/', '', $this->templateName);
+
+        if($renderedTemplateDir && !file_exists($renderedTemplateDir)){
+            mkdir($renderedTemplateDir, 0777, true);
+        }
+
+        $renderedTemplateName = $this->config['cache']['path'].$this->templateName.'.php';
+        
+        file_put_contents($renderedTemplateName, $templateContent);
+
+        $template = $this->props;
+        include_once $renderedTemplateName;
+    }
+
     public function render(){
         $template = $this->props;
 
-        $tplFile = fopen($this->templateName, 'r');
-        $tplFileContent = fread($tplFile, filesize($this->templateName));
+        $tplFile = fopen($this->templateFullName, 'r');
+        $tplFileContent = fread($tplFile, filesize($this->templateFullName));
         fclose($tplFile);
 
         $this->replaceVars($tplFileContent);
@@ -40,6 +64,7 @@ class Templater{
 
         $this->writeMatches($tplFileContent);
 
+        return $tplFileContent;
         // $renderedTemplateName = str_replace('.tmpl', '.php', $this->templateName);
 
         // file_put_contents($renderedTemplateName, $tplFileContent);
@@ -90,7 +115,7 @@ class Templater{
         while(preg_match('/<foreach.*>/', $content, $matches, PREG_OFFSET_CAPTURE, $offset)){
             $attrMatches = [];
             preg_match_all('/(\w+)="(\w+)"/', $matches[0][0], $attrMatches);
-            echo htmlspecialchars($matches[0][0]).'<br>';
+            
             if($attrMatches[0]){
                 $foreachParams = [];
                 for($i = 0; $i < count($attrMatches[0]); $i++){

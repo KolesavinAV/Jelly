@@ -13,11 +13,13 @@ function d($val, $return = false){
 
 require_once 'Templater.php';
 
-$temlater = new Templater('/testTemplate.tmpl');
+$temlater = new Templater('headerDir/deepFolder/index');
 
+$temlater->assign('headerVar', 'QQQQQQQQQ');
 $temlater->assign('title', 'My Super Title');
-$temlater->assign('myValue', 'bla bla bla');
+$temlater->assign('myValue', 'Bla bla bla');
+$temlater->assign('someArr', [0 => 'qwe', 1 => 'asd', 2 => 'zxc']);
 
 // d($temlater);
 
-$temlater->render();
+$temlater->display();
